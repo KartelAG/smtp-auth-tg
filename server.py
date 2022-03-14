@@ -4,6 +4,7 @@ import ssl
 import asyncore
 
 from smtpd import SMTPServer as BaseSMTPServer, SMTPChannel as BaseSMTPChannel, DEBUGSTREAM
+import email
 
 
 def decode_b64(data):
@@ -36,7 +37,7 @@ class SMTPChanel(BaseSMTPChannel):
         super().__init__(server, conn, addr, *args, **kwargs)
         self.username = None
         self.password = None
-        self.authenticated = False
+        self.authenticated = True
         self.authenticating = False
         self.credential_instance = None
 
@@ -265,8 +266,21 @@ class MySMTPServer(SMTPServer):
     channel_class = SMTPChanel
 
     def process_message(self, peer, mailfrom, rcpttos, data, **kwargs):
-        print(type(data))
-        print(data)
+        #print(type(data))
+        #print(data)
+        parsed_from_bytes = email.message_from_bytes(data)
+        for att in parsed_from_bytes.get_payload():
+            ctype = att.get_content_type()
+            print(ctype)
+            #if ctype == 'text/html':
+            #    print(att.get_payload(decode=True))
+            #else:
+            #    open('attached.txt', 'wb').write(att.get_payload(decode=True))
+        #print(type(parsed_from_bytes.get_payload(i=0)))
+        #print(parsed_from_bytes.get_payload(i=0))
+        #parsed_from_string = email.message_from_string(data)
+        #print(parsed_from_string)
+
 
 
 MySMTPServer(
