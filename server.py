@@ -1,8 +1,11 @@
+#!/usr/bin/env python
+
 import asynchat
 import base64
 import ssl
 import asyncore
-
+import os
+from datetime import datetime
 from smtpd import SMTPServer as BaseSMTPServer, SMTPChannel as BaseSMTPChannel, DEBUGSTREAM
 import email
 
@@ -266,14 +269,19 @@ class MySMTPServer(SMTPServer):
     channel_class = SMTPChanel
 
     def process_message(self, peer, mailfrom, rcpttos, data, **kwargs):
-        #print(type(data))
-        #print(data)
         parsed_from_bytes = email.message_from_bytes(data)
+        print(f'{mailfrom=}')
+        print(f'{rcpttos=}')
         for att in parsed_from_bytes.get_payload():
-            ctype = att.get_content_type()
+            ctype = att.get_content_maintype()
             print(ctype)
-            #if ctype == 'text/html':
-            #    print(att.get_payload(decode=True))
+            if ctype in ('text'):
+                print(att.get_payload(decode=True))
+            elif ctype in ('application', 'image'):
+                attach_filename = '_'.join((datetime.now().strftime('%Y%d%m_%H%M%S'), att.get_filename()))
+                print(attach_filename)
+                open(os.path.join('saved',attach_filename), 'wb').write(att.get_payload(decode=True))
+
             #else:
             #    open('attached.txt', 'wb').write(att.get_payload(decode=True))
         #print(type(parsed_from_bytes.get_payload(i=0)))
