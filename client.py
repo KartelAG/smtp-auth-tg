@@ -11,6 +11,7 @@ smtp_server = 'localhost'
 smtp_port = 2525
 attach_pdf = 'attach/rfc5321.pdf'
 attach_html = 'attach/rfc5321.html'
+attach_jpg = 'attach/cat.jpg'
 
 sender_email = "my@email.com"
 receiver_email = "your@email.com"
@@ -60,11 +61,28 @@ part3.add_header(
     f"attachment; filename= {attach_pdf.split('/')[1]}",
 )
 
+with open(attach_jpg, "rb") as attachment:
+    # Add file as application/octet-stream
+    # Email client can usually download this automatically as attachment
+    part4 = MIMEBase("image", "jpeg")
+    part4.set_payload(attachment.read())
+
+# Encode file in ASCII characters to send by email    
+encoders.encode_base64(part4)
+
+# Add header as key/value pair to attachment part
+part4.add_header(
+    "Content-Disposition",
+    f"attachment; filename= {attach_jpg.split('/')[1]}",
+)
+
+
 # Add HTML/plain-text parts to MIMEMultipart message
 # The email client will try to render the last part first
 message.attach(part1)
 message.attach(part2)
 message.attach(part3)
+message.attach(part4)
 
 # Send text, html and pdf as an attachment
 with smtplib.SMTP(smtp_server, smtp_port) as server:

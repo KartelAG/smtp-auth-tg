@@ -4,10 +4,12 @@ import asynchat
 import base64
 import ssl
 import asyncore
+import asyncio
 import os
 from datetime import datetime
 from smtpd import SMTPServer as BaseSMTPServer, SMTPChannel as BaseSMTPChannel, DEBUGSTREAM
 import email
+from aiogram import Bot, types
 
 
 def decode_b64(data):
@@ -268,19 +270,67 @@ class SMTPServer(BaseSMTPServer):
 class MySMTPServer(SMTPServer):
     channel_class = SMTPChanel
 
+    def __init__(self, localaddr, remoteaddr, cert_file=None, key_file=None, bot_token=None, chat_id=None):
+        if bot_token == None or chat_id == None: 
+            print('[Error] Telegram bot token or chat id are empty, exiting')
+            exit()            
+        super().__init__(localaddr, remoteaddr, cert_file, key_file)
+        self.bot = Bot(token=bot_token)
+        self.chat_id = chat_id
+
+    async def send_text(self, some_text):
+        await self.bot.send_message(chat_id=self.chat_id, text=some_text)
+
+    async def send_group(self, some_message):
+        await self.bot.send_media_group(chat_id=self.chat_id, media = some_message)
+
+
     def process_message(self, peer, mailfrom, rcpttos, data, **kwargs):
         parsed_from_bytes = email.message_from_bytes(data)
-        print(f'{mailfrom=}')
-        print(f'{rcpttos=}')
+        
+        message_text = f'From: {mailfrom}\nTo: {rcpttos}\n'
+        filename_list = []
+
+        media_group = types.MediaGroup()
+        #print(str(len(parsed_from_bytes.get_payload())))
         for att in parsed_from_bytes.get_payload():
             ctype = att.get_content_maintype()
-            print(ctype)
-            if ctype in ('text'):
-                print(att.get_payload(decode=True))
-            elif ctype in ('application', 'image'):
+            cfulltype = att.get_content_type()
+            #print(ctype)
+            if cfulltype in ('text/plain'):
+                message_text += att.get_payload(decode=True).decode('utf-8')
+            elif cfulltype in ('text/html'): 
+                attach_filename = '_'.join((datetime.now().strftime('%Y%d%m_%H%M%S'), '.html'))
+                attach_filepath = os.path.join('saved',attach_filename)
+                open(attach_filepath, 'wb').write(att.get_payload(decode=True))
+                media_group.attach_document(types.InputFile(attach_filepath))
+                filename_list.append(attach_filepath)
+            elif ctype in ('application'):
                 attach_filename = '_'.join((datetime.now().strftime('%Y%d%m_%H%M%S'), att.get_filename()))
-                print(attach_filename)
-                open(os.path.join('saved',attach_filename), 'wb').write(att.get_payload(decode=True))
+                attach_filepath = os.path.join('saved',attach_filename)
+                open(attach_filepath, 'wb').write(att.get_payload(decode=True))
+                media_group.attach_document(types.InputFile(attach_filepath))
+                filename_list.append(attach_filepath)
+            elif ctype in ('image'):
+                attach_filename = '_'.join((datetime.now().strftime('%Y%d%m_%H%M%S'), att.get_filename()))
+                attach_filepath = os.path.join('saved',attach_filename)
+                open(attach_filepath, 'wb').write(att.get_payload(decode=True))
+                media_group.attach_document(types.InputFile(attach_filepath))
+                filename_list.append(attach_filepath)
+        # print(message_text)
+        # print(media_group)
+
+        #self.bot.send_message(chat_id=self.chat_id, text=message_text, allow_sending_without_reply=True)
+        asyncio.get_event_loop().run_until_complete(self.send_text(message_text))
+        asyncio.get_event_loop().run_until_complete(self.send_group(media_group))
+        #self.send_text(message_text)
+        #self.send_group(media_group)
+        
+
+
+        for filename in filename_list:
+            if os.path.exists(filename):
+                os.remove(filename)
 
             #else:
             #    open('attached.txt', 'wb').write(att.get_payload(decode=True))
@@ -293,7 +343,9 @@ class MySMTPServer(SMTPServer):
 
 MySMTPServer(
     ('0.0.0.0', 2525),
-    None
+    None, 
+    bot_token='', 
+    chat_id=''
 )
 
 asyncore.loop()
