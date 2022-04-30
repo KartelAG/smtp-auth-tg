@@ -14,14 +14,14 @@ attach_html = 'attach/rfc5321.html'
 attach_jpg = 'attach/cat.jpg'
 
 sender_email = "my@email.com"
-receiver_email = "your@email.com"
+receiver_email = ["your@email.com", "MailBot@cbr.ru"]
 password = '123'
 
 message = MIMEMultipart()
 #message = MIMEMultipart("alternative")
 message["Subject"] = "multipart test"
 message["From"] = sender_email
-message["To"] = receiver_email
+message["To"] = ", ".join(receiver_email)
 
 # Create the plain-text and HTML version of your message
 body_text = """\

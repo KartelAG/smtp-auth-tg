@@ -1,3 +1,5 @@
 venv*
 saved/*
 bot-token
+chat-id
+__pycache__
