@@ -14,14 +14,15 @@ from aiogram import Bot, types
 
 class MySMTPServer(SMTPServer):
     
-    def __init__(self, localaddr, remoteaddr, cert_file=None, key_file=None, bot_token=None, chat_id=None, relayserver=None):
+    def __init__(self, localaddr, remoteaddr, cert_file=None, key_file=None, bot_token=None, chat_id=None, relayserver=None, proxyserver=None):
         if bot_token == None or chat_id == None or chat_id == '' or bot_token == '': 
             print('[Error] Telegram bot token or chat id are empty, exiting')
             exit()            
         super().__init__(localaddr, remoteaddr, cert_file, key_file)
-        self.bot = Bot(token=bot_token)
+        self.bot = Bot(token=bot_token, proxy=proxyserver)
         self.chat_id = chat_id
         self.relayserver = relayserver
+        
 
     async def send_text(self, some_text):
         await self.bot.send_message(chat_id=self.chat_id, text=some_text)
@@ -57,28 +58,31 @@ class MySMTPServer(SMTPServer):
         parsed_from_bytes = email.message_from_bytes(msg)
         filename_list = []
         media_group = types.MediaGroup()
-        for att in parsed_from_bytes.get_payload():
-            ctype = att.get_content_maintype()
-            cfulltype = att.get_content_type()
-            if cfulltype in ('text/plain'):
-                text += att.get_payload(decode=True).decode('utf-8')
-            elif cfulltype in ('text/html'):
-                filepath = self.save_temp_file(att, '.html')
-                media_group.attach_document(types.InputFile(filepath))
-                filename_list.append(filepath)
-            elif ctype in ('application') or ctype in ('image'):
-                filepath = self.save_temp_file(att, att.get_filename())
-                media_group.attach_document(types.InputFile(filepath))
-                filename_list.append(filepath)
-        #self.bot.send_message(chat_id=self.chat_id, text=message_text, allow_sending_without_reply=True)
-        if len(media_group.media) > 0:
-            media_group.media[0].caption = text
-            asyncio.get_event_loop().run_until_complete(self.send_group(media_group))
-        else:    
-            asyncio.get_event_loop().run_until_complete(self.send_text(text))
-        for filename in filename_list:
-            if os.path.exists(filename):
-                os.remove(filename)
+        if parsed_from_bytes.is_multipart():
+            for att in parsed_from_bytes.get_payload():
+                ctype = att.get_content_maintype()
+                cfulltype = att.get_content_type()
+                if cfulltype in ('text/plain'):
+                    text += att.get_payload(decode=True).decode('utf-8')
+                elif cfulltype in ('text/html'):
+                    filepath = self.save_temp_file(att, '.html')
+                    media_group.attach_document(types.InputFile(filepath))
+                    filename_list.append(filepath)
+                elif ctype in ('application') or ctype in ('image'):
+                    filepath = self.save_temp_file(att, att.get_filename())
+                    media_group.attach_document(types.InputFile(filepath))
+                    filename_list.append(filepath)
+            #self.bot.send_message(chat_id=self.chat_id, text=message_text, allow_sending_without_reply=True)
+            if len(media_group.media) > 0:
+                media_group.media[0].caption = text
+                asyncio.get_event_loop().run_until_complete(self.send_group(media_group))
+            else:    
+                asyncio.get_event_loop().run_until_complete(self.send_text(text))
+            for filename in filename_list:
+                if os.path.exists(filename):
+                    os.remove(filename)
+        else:
+            asyncio.get_event_loop().run_until_complete(self.send_text(parsed_from_bytes.get_payload()))
 
     def process_message(self, peer, mailfrom, rcpttos, data, **kwargs):
         message_text = f'From: {mailfrom}\nTo: {rcpttos}\n'
@@ -90,6 +94,12 @@ class MySMTPServer(SMTPServer):
        
 
 if __name__ == '__main__':
+    # example
+    # RELAY_SERVER = ('1.2.3.4', 25)
+    RELAY_SERVER = None
+    # example
+    # PROXY_SERVER = 'http://5.6.7.8:3128'
+    PROXY_SERVER = None
     try:
         with open('bot-token', 'r') as f:
             token = f.readline()
@@ -102,6 +112,8 @@ if __name__ == '__main__':
         ('0.0.0.0', 2525),
         None, 
         bot_token=token, 
-        chat_id=chat
+        chat_id=chat,
+        relayserver=RELAY_SERVER,
+        proxyserver=PROXY_SERVER
     )
     asyncore.loop()

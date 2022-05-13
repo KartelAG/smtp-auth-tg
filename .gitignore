@@ -2,4 +2,5 @@ venv*
 saved/*
 bot-token
 chat-id
+bot info.txt
 __pycache__

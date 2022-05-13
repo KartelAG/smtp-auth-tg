@@ -93,4 +93,12 @@ with smtplib.SMTP(smtp_server, smtp_port) as server:
 # with smtplib.SMTP(smtp_server, smtp_port) as server:
 #     server.login(sender_email, password)
 #     server.sendmail(sender_email, receiver_email, message.as_string())
-    
+
+plain_message = """\
+Subject: Hi there
+
+This message is sent from Python."""
+
+# Send email here
+with smtplib.SMTP(smtp_server, smtp_port) as server:
+    server.sendmail(sender_email, receiver_email, plain_message)
