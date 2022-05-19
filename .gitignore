@@ -1,5 +1,5 @@
 venv*
-saved/*
+saved/**
 bot-token
 chat-id
 bot info.txt

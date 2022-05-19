@@ -56,9 +56,10 @@ class MySMTPServer(SMTPServer):
 
     def send_to_bot(self, msg, text = '') -> None:
         parsed_from_bytes = email.message_from_bytes(msg)
-        filename_list = []
-        media_group = types.MediaGroup()
+        text += str(parsed_from_bytes.get('subject'))
         if parsed_from_bytes.is_multipart():
+            filename_list = []
+            media_group = types.MediaGroup()
             for att in parsed_from_bytes.get_payload():
                 ctype = att.get_content_maintype()
                 cfulltype = att.get_content_type()
@@ -72,7 +73,6 @@ class MySMTPServer(SMTPServer):
                     filepath = self.save_temp_file(att, att.get_filename())
                     media_group.attach_document(types.InputFile(filepath))
                     filename_list.append(filepath)
-            #self.bot.send_message(chat_id=self.chat_id, text=message_text, allow_sending_without_reply=True)
             if len(media_group.media) > 0:
                 media_group.media[0].caption = text
                 asyncio.get_event_loop().run_until_complete(self.send_group(media_group))
@@ -82,11 +82,19 @@ class MySMTPServer(SMTPServer):
                 if os.path.exists(filename):
                     os.remove(filename)
         else:
-            asyncio.get_event_loop().run_until_complete(self.send_text(parsed_from_bytes.get_payload()))
+            cfulltype = parsed_from_bytes.get_content_type()
+            if cfulltype in ('text/plain'):
+                asyncio.get_event_loop().run_until_complete(self.send_text(parsed_from_bytes.get_payload()))
+            elif cfulltype in ('text/html'):
+                filepath = filepath = self.save_temp_file(parsed_from_bytes, '.html')
+                asyncio.get_event_loop().run_until_complete(self.bot.send_document(chat_id=self.chat_id, document=types.InputFile(filepath), caption = text))
+                os.remove(filepath)
+
+
+            
 
     def process_message(self, peer, mailfrom, rcpttos, data, **kwargs):
         message_text = f'From: {mailfrom}\nTo: {rcpttos}\n'
-        print(rcpttos)
         other_rcpts = [i for i in rcpttos if i.lower() != 'mailbot@cbr.ru']
         if rcpttos != other_rcpts:
             self.send_to_bot(data, text=message_text)

@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
+from cgitb import html
 from email import encoders
 from email.mime.base import MIMEBase
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.message import Message as EmailMessage
 from time import sleep
 
 smtp_server = 'localhost'
@@ -102,3 +104,10 @@ This message is sent from Python."""
 # Send email here
 with smtplib.SMTP(smtp_server, smtp_port) as server:
     server.sendmail(sender_email, receiver_email, plain_message)
+
+html_message = EmailMessage()
+html_message.set_type('text/html')
+html_message.set_payload(body_html)
+html_message.add_header('subject', 'html test message')
+with smtplib.SMTP(smtp_server, smtp_port) as server:
+    server.sendmail(sender_email, receiver_email, html_message.as_string())
