@@ -1,5 +1,6 @@
 venv*
-saved/**
+saved/*
+!saved/.gitkeep
 bot-token
 chat-id
 bot info.txt
