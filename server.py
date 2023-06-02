@@ -46,7 +46,8 @@ class MySMTPServer(SMTPServer):
                 s = smtplib.SMTP()
                 s.connect(self.relayserver[0], self.relayserver[1])
                 try:
-                    refused = s.sendmail(mailfrom, rcpttos, data)
+                    #refused = s.sendmail(mailfrom, rcpttos, data)
+                    refused = s.send_message(email.message_from_bytes(data),mailfrom, rcpttos)
                 finally:
                     s.quit()
                     if refused:
